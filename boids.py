@@ -20,7 +20,7 @@ class Boid:
         self.herd = herd
         self.herdPosSpeed = dict()
         for boid in self.herd:
-            self.herdPosSpeed[boid]=[0,0]
+            self.herdPosSpeed[boid]=[self.x,self.y]
         self.canvas.create_line(self.drawBoid(), tags=self.tag)
 
     def drawBoid(self):
@@ -56,11 +56,9 @@ class Boid:
         c = self.converge()
         d = self.diverge()
         v = self.adjustVelocity()
-        self.xp = c[0]+d[0]#+v[0]
-        self.yp = c[1]+d[1]#+v[1]
+        self.xp = c[0]+d[0]+v[0]
+        self.yp = c[1]+d[1]+v[1]
         self.move()
-
-            # coordsTag = self.canvas.bbox(tag)
 
     def converge(self):
         COM = [0,0]
@@ -76,14 +74,14 @@ class Boid:
 
     def diverge(self):
         d = [0,0]
-        th = 25
+        th = 10
+        COMx, COMy = self.getCOM(self.tag)
         for tag in self.herd:
             if not tag == self.tag:
                 COMxi, COMyi = self.getCOM(tag)
-                COMx, COMy = self.getCOM(self.tag)
-                if abs(COMx-COMxi)<th and abs(COMy-COMyi)<th:
-                    d[0]-=(COMx-COMxi)
-                    d[1]-=(COMy-COMyi)
+                if abs(COMxi-COMx)<th and abs(COMyi-COMy)<th:
+                    d[0]-=(COMxi-COMx)
+                    d[1]-=(COMyi-COMy)
         return d
 
     def adjustVelocity(self):
@@ -95,14 +93,22 @@ class Boid:
                 self.herdPosSpeed[tag] = [COMx,COMy]
                 v[0]+=COMx-lastPos[0]
                 v[1]+=COMy-lastPos[1]
-        v[0]/=(len(self.herd)-1)
-        v[1]/=(len(self.herd)-1)
+        v[0]/=((len(self.herd)-1)*2)
+        v[1]/=((len(self.herd)-1)*2)
         return v
 
     def getCOM(self, tag):
         coordsTag = self.canvas.bbox(tag)
         COMx = int((coordsTag[2]+coordsTag[0])/2)
+        if COMx < 0:
+            COMx = 900 - COMx
+        elif COMx > 900:
+            COMx -= 900
         COMy = int((coordsTag[3]+coordsTag[1])/2)
+        if COMy < 0:
+            COMy = 900 - COMy
+        elif COMy > 900:
+            COMy -= 900
         return (COMx,COMy)
 
 def main():
@@ -115,7 +121,7 @@ def main():
 
     # create two ball objects and animate them
 
-    listOfTags = ["boid%s"%i for i in range(1,30)]
+    listOfTags = ["boid%s"%i for i in range(1,50)]
     boids={}
     for tag in listOfTags:
         boids[tag] = Boid(canvas, random.randint(1,899), random.randint(1,899), 0, 0, 0, tag, listOfTags)
