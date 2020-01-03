@@ -4,7 +4,6 @@ from tkinter import *
 import math
 import random
 
-
 class Boid:
     """docstring for Boid."""
     def __init__(self, canvas, x, y, xp, yp, alpha, tag, herd):
@@ -19,9 +18,10 @@ class Boid:
         self.canvas = canvas
         self.tag=tag
         self.herd = herd
-        # self.boid = self.drawBoid(self.x, self.y)
+        self.herdPosSpeed = dict()
+        for boid in self.herd:
+            self.herdPosSpeed[boid]=[0,0]
         self.canvas.create_line(self.drawBoid(), tags=self.tag)
-        print(self.canvas.bbox(self.tag))
 
     def drawBoid(self):
         x2 = self.x + self.r*math.cos(self.alpha)
@@ -53,16 +53,57 @@ class Boid:
         self.canvas.after(50, self.updateSpeed)
 
     def updateSpeed(self):
-        for tag in self.herd:
-            if tag==self.tag:
-                print("This is %s"%tag)
-            else:
-                print("Other %s is at %s"%(tag, self.canvas.bbox(tag)))
-        print('\n')
-        self.xp = math.sin(self.step*math.pi/100)*random.randint(-2,2)
-        self.yp = math.cos(self.step*math.pi/100)*random.randint(-2,2)
+        c = self.converge()
+        d = self.diverge()
+        v = self.adjustVelocity()
+        self.xp = c[0]+d[0]#+v[0]
+        self.yp = c[1]+d[1]#+v[1]
         self.move()
 
+            # coordsTag = self.canvas.bbox(tag)
+
+    def converge(self):
+        COM = [0,0]
+        for tag in self.herd:
+            if not tag == self.tag:
+                COMx, COMy = self.getCOM(tag)
+                COM[0]+=COMx
+                COM[1]+=COMy
+        COM[0]/=(len(self.herd)-1)
+        COM[1]/=(len(self.herd)-1)
+        COMx, COMy = self.getCOM(self.tag)
+        return (math.ceil((COM[0]-COMx)/100),math.ceil((COM[1]-COMy)/100))
+
+    def diverge(self):
+        d = [0,0]
+        th = 25
+        for tag in self.herd:
+            if not tag == self.tag:
+                COMxi, COMyi = self.getCOM(tag)
+                COMx, COMy = self.getCOM(self.tag)
+                if abs(COMx-COMxi)<th and abs(COMy-COMyi)<th:
+                    d[0]-=(COMx-COMxi)
+                    d[1]-=(COMy-COMyi)
+        return d
+
+    def adjustVelocity(self):
+        v = [0,0]
+        for tag in self.herd:
+            if not tag == self.tag:
+                lastPos = self.herdPosSpeed[tag]
+                COMx, COMy = self.getCOM(tag)
+                self.herdPosSpeed[tag] = [COMx,COMy]
+                v[0]+=COMx-lastPos[0]
+                v[1]+=COMy-lastPos[1]
+        v[0]/=(len(self.herd)-1)
+        v[1]/=(len(self.herd)-1)
+        return v
+
+    def getCOM(self, tag):
+        coordsTag = self.canvas.bbox(tag)
+        COMx = int((coordsTag[2]+coordsTag[0])/2)
+        COMy = int((coordsTag[3]+coordsTag[1])/2)
+        return (COMx,COMy)
 
 def main():
 
@@ -74,12 +115,11 @@ def main():
 
     # create two ball objects and animate them
 
-    listOfTags = ["boid%s"%i for i in range(1,4)]
+    listOfTags = ["boid%s"%i for i in range(1,30)]
     boids={}
     for tag in listOfTags:
-        boids[tag] = Boid(canvas, random.randint(1,899), random.randint(1,899), random.randint(1,899), random.randint(1,899), 0, tag, listOfTags)
+        boids[tag] = Boid(canvas, random.randint(1,899), random.randint(1,899), 0, 0, 0, tag, listOfTags)
         boids[tag].move()
-
 
     root.mainloop()
 
