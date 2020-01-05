@@ -6,14 +6,15 @@ import random
 
 class Boid:
     """docstring for Boid."""
-    def __init__(self, canvas, x, y, xp, yp, alpha, tag, herd):
-        super(Boid, self).__init__()
-        self.step = 0
+    def __init__(self, canvas, x, y, maxX, maxY, tag, herd, obstacles):
+        # super(Boid, self).__init__()
         self.x = x
         self.y = y
-        self.xp= xp
-        self.yp = yp
-        self.alpha = alpha
+        self.xp= 0
+        self.yp = 0
+        self.maxX = maxX
+        self.maxY = maxY
+        self.alpha = 0
         self.r = 10
         self.canvas = canvas
         self.tag=tag
@@ -21,6 +22,8 @@ class Boid:
         self.herdPosSpeed = dict()
         for boid in self.herd:
             self.herdPosSpeed[boid]=[self.x,self.y]
+        self.obstacles=obstacles
+        self.offset = 10
         self.canvas.create_line(self.drawBoid(), tags=self.tag)
 
     def drawBoid(self):
@@ -33,20 +36,29 @@ class Boid:
         return (x1,y1,x2,y2,x3,y3)
 
     def move(self):
-        self.step+=1
-        if self.x <= 900 and self.x >= 0:
+        boundless = False
+        if self.x <= self.maxX and self.x >= 0:
             self.x+=self.xp
         elif self.x<0:
-            self.x = 900+self.xp
-        elif self.x>900:
-            self.x = self.xp
-
-        if self.y <= 900 and self.y >= 0:
+            self.x = self.maxX+self.xp if boundless else 0
+        elif self.x>self.maxX:
+            self.x = self.xp if boundless else self.maxX
+        if self.y <= self.maxY and self.y >= 0:
             self.y+=self.yp
         elif self.y<0:
-            self.y = 900+self.yp
-        elif self.y>900:
-            self.y = self.yp
+            self.y = self.maxY+self.yp if boundless else 0
+        elif self.y>self.maxY:
+            self.y = self.yp if boundless else self.maxY
+        for obst in self.obstacles:
+            coordsObs = self.canvas.bbox(obst)
+            xo0 = coordsObs[0]
+            xo1 = coordsObs[2]
+            yo0 = coordsObs[1]
+            yo1 = coordsObs[3]
+            if self.x > xo0-self.offset and self.x < xo1+self.offset and self.y > yo0-self.offset and self.y < yo1+self.offset:
+                COMx, COMy = self.getCOM(obst)
+                self.x +=(COMx-xo0) if self.x >= COMx else -(COMx-xo0)
+                self.y +=(COMy-yo0) if self.y >= COMy else -(COMy-yo0)
 
         self.alpha = math.atan2(-self.yp,self.xp)
         self.canvas.coords(self.tag, self.drawBoid())
@@ -61,6 +73,8 @@ class Boid:
         self.move()
 
     def converge(self):
+        c = [0,0]
+        cf = 80
         COM = [0,0]
         for tag in self.herd:
             if not tag == self.tag:
@@ -70,22 +84,26 @@ class Boid:
         COM[0]/=(len(self.herd)-1)
         COM[1]/=(len(self.herd)-1)
         COMx, COMy = self.getCOM(self.tag)
-        return (math.ceil((COM[0]-COMx)/100),math.ceil((COM[1]-COMy)/100))
+        c[0]=math.ceil((COM[0]-COMx)/cf)
+        c[1]=math.ceil((COM[1]-COMy)/cf)
+        return c
 
     def diverge(self):
         d = [0,0]
         th = 10
+        df = 2
         COMx, COMy = self.getCOM(self.tag)
         for tag in self.herd:
             if not tag == self.tag:
                 COMxi, COMyi = self.getCOM(tag)
                 if abs(COMxi-COMx)<th and abs(COMyi-COMy)<th:
-                    d[0]-=(COMxi-COMx)
-                    d[1]-=(COMyi-COMy)
+                    d[0]-=(COMxi-COMx)/df
+                    d[1]-=(COMyi-COMy)/df
         return d
 
     def adjustVelocity(self):
         v = [0,0]
+        vf = 1
         for tag in self.herd:
             if not tag == self.tag:
                 lastPos = self.herdPosSpeed[tag]
@@ -93,38 +111,134 @@ class Boid:
                 self.herdPosSpeed[tag] = [COMx,COMy]
                 v[0]+=COMx-lastPos[0]
                 v[1]+=COMy-lastPos[1]
-        v[0]/=((len(self.herd)-1)*2)
-        v[1]/=((len(self.herd)-1)*2)
+        v[0]/=((len(self.herd)-1)*vf)
+        v[1]/=((len(self.herd)-1)*vf)
         return v
 
     def getCOM(self, tag):
         coordsTag = self.canvas.bbox(tag)
         COMx = int((coordsTag[2]+coordsTag[0])/2)
         if COMx < 0:
-            COMx = 900 - COMx
-        elif COMx > 900:
-            COMx -= 900
+            COMx = self.maxX - COMx
+        elif COMx > self.maxX:
+            COMx -= self.maxX
         COMy = int((coordsTag[3]+coordsTag[1])/2)
         if COMy < 0:
-            COMy = 900 - COMy
-        elif COMy > 900:
-            COMy -= 900
-        return (COMx,COMy)
+            COMy = self.maxY - COMy
+        elif COMy > self.maxY:
+            COMy -= self.maxY
+        return [COMx,COMy]
+
+class Obstacle:
+    def __init__(self, canvas, x, y, r, tag):
+        self.x = x
+        self.y = y
+        self.r = r
+        self.canvas = canvas
+        self.tag=tag
+        self.drawObstacle(self.x, self.y, self.r)
+
+    def drawObstacle(self, x, y, r):
+        xtlc = x+r*math.cos(3*math.pi/4)
+        ytlc = y+r*math.sin(3*math.pi/4)
+        xbrc = x+r*math.cos(7*math.pi/4)
+        ybrc = y+r*math.sin(7*math.pi/4)
+        self.canvas.create_oval(xtlc,ytlc,xbrc,ybrc, tags=self.tag)
+
+class Prey:
+    def __init__(self, canvas, x, y, maxX, maxY, tag, obstacles):
+        self.x = x
+        self.y = y
+        self.xp= 0
+        self.yp = 0
+        self.maxX = maxX
+        self.maxY = maxY
+        self.alpha = 0
+        self.r = 5
+        self.canvas = canvas
+        self.tag=tag
+        self.obstacles=obstacles
+        self.offset = 10
+        self.canvas.create_line(self.drawPrey(), tags=self.tag)
+
+    def drawPrey(self):
+        x2 = self.x + self.r*math.cos(self.alpha)
+        y2 = self.y - self.r*math.sin(self.alpha)
+        x1 = self.x + self.r*math.cos(self.alpha+2*math.pi/3)
+        y1 = self.y - self.r*math.sin(self.alpha+2*math.pi/3)
+        x3 = self.x + self.r*math.cos(self.alpha+4*math.pi/3)
+        y3 = self.y - self.r*math.sin(self.alpha+4*math.pi/3)
+        return (x1,y1,x2,y2,x3,y3)
+
+    def move(self):
+        boundless = True
+        if self.x <= self.maxX and self.x >= 0:
+            self.x+=self.xp
+        elif self.x<0:
+            self.x = self.maxX+self.xp if boundless else 0
+        elif self.x>self.maxX:
+            self.x = self.xp if boundless else self.maxX
+        if self.y <= self.maxY and self.y >= 0:
+            self.y+=self.yp
+        elif self.y<0:
+            self.y = self.maxY+self.yp if boundless else 0
+        elif self.y>self.maxY:
+            self.y = self.yp if boundless else self.maxY
+        for obst in self.obstacles:
+            coordsObs = self.canvas.bbox(obst)
+            xo0 = coordsObs[0]
+            xo1 = coordsObs[2]
+            yo0 = coordsObs[1]
+            yo1 = coordsObs[3]
+            if self.x > xo0-self.offset and self.x < xo1+self.offset and self.y > yo0-self.offset and self.y < yo1+self.offset:
+                COMx, COMy = self.getCOM(obst)
+                self.x +=(COMx-xo0) if self.x >= COMx else -(COMx-xo0)
+                self.y +=(COMy-yo0) if self.y >= COMy else -(COMy-yo0)
+
+        self.alpha = math.atan2(-self.yp,self.xp)
+        self.canvas.coords(self.tag, self.drawPrey())
+        self.canvas.after(50, self.updateSpeed)
+
+    def updateSpeed(self):
+        self.xp = self.xp+random.randint(-2,2) if self.x <= 5 else 5
+        self.yp = self.yp+random.randint(-2,2) if self.y <= 5 else 5
+        self.move()
+
+    def getCOM(self, tag):
+        coordsTag = self.canvas.bbox(tag)
+        COMx = int((coordsTag[2]+coordsTag[0])/2)
+        if COMx < 0:
+            COMx = self.maxX - COMx
+        elif COMx > self.maxX:
+            COMx -= self.maxX
+        COMy = int((coordsTag[3]+coordsTag[1])/2)
+        if COMy < 0:
+            COMy = self.maxY - COMy
+        elif COMy > self.maxY:
+            COMy -= self.maxY
+        return [COMx,COMy]
 
 def main():
 
+    maxX = 700
+    maxY = 700
     root = Tk()
     root.title("Boids")
     root.resizable(False,False)
-    canvas = Canvas(root, width = 900, height = 900)
+    canvas = Canvas(root, width = maxX, height = maxY)
     canvas.pack()
 
     # create two ball objects and animate them
-
+    listOfObstacles = ["obst%s"%i for i in range(1,15)]
+    obstacle=dict()
+    for obst in listOfObstacles:
+        obstacle[obst] = Obstacle(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), 10, obst)
+    prey = Prey(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), maxX, maxY, "prey", listOfObstacles)
+    prey.move()
     listOfTags = ["boid%s"%i for i in range(1,50)]
-    boids={}
+    boids=dict()
     for tag in listOfTags:
-        boids[tag] = Boid(canvas, random.randint(1,899), random.randint(1,899), 0, 0, 0, tag, listOfTags)
+        boids[tag] = Boid(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), maxX, maxY, tag, listOfTags, listOfObstacles)
         boids[tag].move()
 
     root.mainloop()
