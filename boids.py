@@ -26,6 +26,7 @@ class Boid:
         self.offset = 10
         self.preys = preys
         self.canvas.create_line(self.drawBoid(), tags=self.tag)
+        self.canvas.create_line(0,0,0,0, tags=self.tag+"speed")
 
     def drawBoid(self):
         x2 = self.x + self.r*math.cos(self.alpha)
@@ -35,6 +36,10 @@ class Boid:
         x3 = self.x + self.r*math.cos(self.alpha+4*math.pi/3)
         y3 = self.y - self.r*math.sin(self.alpha+4*math.pi/3)
         return (x1,y1,x2,y2,x3,y3)
+
+    def drawVector(self):
+        COMx, COMy = self.getCOM(self.tag)
+        self.canvas.coords(self.tag+"speed", COMx, COMy, COMx+self.xp, COMy+self.yp)
 
     def move(self):
         boundless = True
@@ -63,6 +68,7 @@ class Boid:
 
         self.alpha = math.atan2(-self.yp,self.xp)
         self.canvas.coords(self.tag, self.drawBoid())
+        self.drawVector()
         self.canvas.after(50, self.updateSpeed)
 
     def updateSpeed(self):
@@ -177,6 +183,7 @@ class Prey:
         self.herd = herd
         self.offset = 10
         self.canvas.create_line(self.drawPrey(), tags=self.tag)
+        self.canvas.create_line(0,0,0,0, tags=self.tag+"speed")
 
     def drawPrey(self):
         x2 = self.x + self.r*math.cos(self.alpha)
@@ -186,6 +193,10 @@ class Prey:
         x3 = self.x + self.r*math.cos(self.alpha+4*math.pi/3)
         y3 = self.y - self.r*math.sin(self.alpha+4*math.pi/3)
         return (x1,y1,x2,y2,x3,y3)
+
+    def drawVector(self):
+        COMx, COMy = self.getCOM(self.tag)
+        self.canvas.coords(self.tag+"speed", COMx, COMy, COMx+self.xp, COMy+self.yp)
 
     def move(self):
         boundless = True
@@ -214,6 +225,7 @@ class Prey:
 
         self.alpha = math.atan2(-self.yp,self.xp)
         self.canvas.coords(self.tag, self.drawPrey())
+        self.drawVector()
         self.canvas.after(50, self.updateSpeed)
 
     def updateSpeed(self):
@@ -281,7 +293,7 @@ def main():
     canvas.pack()
 
     # create two ball objects and animate them
-    listOfObstacles = ["obst%s"%i for i in range(1,50)]
+    listOfObstacles = ["obst%s"%i for i in range(1,40)]
     listOfTags = ["boid%s"%i for i in range(1,40)]
     obstacle=dict()
     for obst in listOfObstacles:
