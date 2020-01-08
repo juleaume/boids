@@ -55,16 +55,7 @@ class Boid:
             self.y = self.maxY+self.yp if boundless else 0
         elif self.y>self.maxY:
             self.y = self.yp if boundless else self.maxY
-        for obst in self.obstacles:
-            coordsObs = self.canvas.bbox(obst)
-            xo0 = coordsObs[0]
-            xo1 = coordsObs[2]
-            yo0 = coordsObs[1]
-            yo1 = coordsObs[3]
-            if self.x > xo0-self.offset and self.x < xo1+self.offset and self.y > yo0-self.offset and self.y < yo1+self.offset:
-                COMx, COMy = self.getCOM(obst)
-                self.x +=(COMx-xo0) if self.x >= COMx else -(COMx-xo0)
-                self.y +=(COMy-yo0) if self.y >= COMy else -(COMy-yo0)
+
 
         self.alpha = math.atan2(-self.yp,self.xp)
         self.canvas.coords(self.tag, self.drawBoid())
@@ -136,6 +127,13 @@ class Boid:
         h[0] = int((preyCOM[0]-selfCOM[0])/hf)
         h[1] = int((preyCOM[1]-selfCOM[1])/hf)
         return h
+
+    def obstacleAvoidance(self, xp, yp):
+        o = [0,0]
+        for obst in self.obstacles:
+            xo0,xo1,yo0,yo1 = self.canvas.bbox(obst)
+            r = xo1-xo0
+
 
     def getCOM(self, tag):
         coordsTag = self.canvas.bbox(tag)
@@ -293,11 +291,11 @@ def main():
     canvas.pack()
 
     # create two ball objects and animate them
-    listOfObstacles = ["obst%s"%i for i in range(1,40)]
+    listOfObstacles = ["obst%s"%i for i in range(1,2)]
     listOfTags = ["boid%s"%i for i in range(1,40)]
     obstacle=dict()
     for obst in listOfObstacles:
-        obstacle[obst] = Obstacle(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), 10, obst)
+        obstacle[obst] = Obstacle(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), 600, obst)
     prey = Prey(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), maxX, maxY, "prey", listOfTags, listOfObstacles)
     prey.move()
     boids=dict()
