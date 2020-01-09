@@ -68,8 +68,11 @@ class Boid:
         v = self.adjustVelocity()
         i = self.intertia()
         h = self.hunting()
-        self.xp = c[0]+d[0]+v[0]+h[0]
-        self.yp = c[1]+d[1]+v[1]+h[1]
+        ax = c[0]+d[0]+v[0]+h[0]
+        ay = c[1]+d[1]+v[1]+h[1]
+        self.obstacleAvoidance(ax,ay)
+        self.xp = ax
+        self.yp = ay
         self.move()
 
     def converge(self):
@@ -132,8 +135,16 @@ class Boid:
         o = [0,0]
         for obst in self.obstacles:
             xo0,xo1,yo0,yo1 = self.canvas.bbox(obst)
-            r = xo1-xo0
-
+            x0,y0 = self.getCOM(obst)
+            print("circle has coordinates")
+            print(self.canvas.bbox(obst))
+            print("so should have dimensions :")
+            print("x %s - %s = %s"%(xo1, xo0, xo1-xo0))
+            print("y %s - %s = %s"%(yo1, yo0, yo1-yo0))
+            r = (xo1-xo0)/2
+            alpha = math.atan2(self.y-y0, self.x-x0)
+            if self.x + xp > x0+r*math.cos(alpha) and self.y + yp > y0+r*math.sin(alpha):
+                print(self.tag,self.x, self.y, self.getCOM(obst), alpha, r)
 
     def getCOM(self, tag):
         coordsTag = self.canvas.bbox(tag)
@@ -292,10 +303,10 @@ def main():
 
     # create two ball objects and animate them
     listOfObstacles = ["obst%s"%i for i in range(1,2)]
-    listOfTags = ["boid%s"%i for i in range(1,40)]
+    listOfTags = ["boid%s"%i for i in range(1,3)]
     obstacle=dict()
     for obst in listOfObstacles:
-        obstacle[obst] = Obstacle(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), 600, obst)
+        obstacle[obst] = Obstacle(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), 60, obst)
     prey = Prey(canvas, random.randint(1,maxX-1), random.randint(1,maxY-1), maxX, maxY, "prey", listOfTags, listOfObstacles)
     prey.move()
     boids=dict()
